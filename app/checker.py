@@ -1,7 +1,10 @@
 from datetime import datetime, timezone
+from typing import Literal
 import time
 import httpx
 from app.models import ServiceCheckRequest, ServiceCheckResult
+
+_check_history: list[ServiceCheckResult] = []
 
 
 async def check_service(payload: ServiceCheckRequest) -> ServiceCheckResult:
@@ -15,7 +18,7 @@ async def check_service(payload: ServiceCheckRequest) -> ServiceCheckResult:
         elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
         is_up = 200 <= response.status_code < 500
 
-        return ServiceCheckResult(
+        result = ServiceCheckResult(
             name=payload.name,
             url=str(payload.url),
             status="up" if is_up else "down",
@@ -25,7 +28,7 @@ async def check_service(payload: ServiceCheckRequest) -> ServiceCheckResult:
         )
     except httpx.RequestError as exc:
         elapsed_ms = round((time.perf_counter() - start) * 1000, 2)
-        return ServiceCheckResult(
+        result = ServiceCheckResult(
             name=payload.name,
             url=str(payload.url),
             status="down",
@@ -33,3 +36,12 @@ async def check_service(payload: ServiceCheckRequest) -> ServiceCheckResult:
             error=str(exc),
             checked_at=checked_at,
         )
+
+    _check_history.append(result)
+    return result
+
+
+def list_checks(status: Literal["up", "down"] | None = None) -> list[ServiceCheckResult]:
+    if status is None:
+        return list(_check_history)
+    return [item for item in _check_history if item.status == status]
