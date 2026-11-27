@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ServicePulse — Service Health & Latency Monitor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
+  <div class="max-w-5xl mx-auto px-4 py-10">
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
+      <div>
+        <div class="flex items-center gap-3">
+          <span class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
+          <h1 class="text-2xl font-bold tracking-tight text-white">ServicePulse</h1>
+          <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">v0.3.0</span>
+        </div>
+        <p class="text-slate-400 text-sm mt-1">Monitoramento assíncrono de disponibilidade e latência de APIs e serviços HTTP.</p>
+      </div>
+      <a href="/docs" target="_blank" class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+        Documentação API (/docs) ↗
+      </a>
+    </header>
+
+    <!-- Summary Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total de Verificações</p>
+        <p id="stat-total" class="text-3xl font-bold text-white mt-2">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <p class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">Serviços Online (UP)</p>
+        <p id="stat-up" class="text-3xl font-bold text-emerald-400 mt-2">0</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <p class="text-xs uppercase tracking-wider text-rose-400 font-semibold">Indisponíveis (DOWN)</p>
+        <p id="stat-down" class="text-3xl font-bold text-rose-400 mt-2">0</p>
+      </div>
+    </section>
+
+    <!-- Check Form -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-8">
+      <h2 class="text-base font-semibold text-white mb-4">Testar Novo Serviço</h2>
+      <form id="check-form" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-4">
+          <label class="block text-xs text-slate-400 mb-1">Nome do Serviço</label>
+          <input id="service-name" type="text" required placeholder="Ex: GitHub API"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div class="md:col-span-6">
+          <label class="block text-xs text-slate-400 mb-1">URL (com https://)</label>
+          <input id="service-url" type="url" required placeholder="https://api.github.com"
+            class="w-full px-3.5 py-2.5 rounded-lg bg-slate-950 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500" />
+        </div>
+        <div class="md:col-span-2 flex items-end">
+          <button id="submit-btn" type="submit"
+            class="w-full py-2.5 px-4 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-semibold text-sm transition cursor-pointer">
+            Verificar
+          </button>
+        </div>
+      </form>
+      <p id="form-feedback" class="text-xs text-rose-400 mt-3 hidden"></p>
+    </section>
+
+    <!-- History Table -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-800">
+        <h2 class="text-base font-semibold text-white">Histórico de Monitoramento</h2>
+        <div class="flex items-center gap-2 text-xs">
+          <button onclick="setFilter(null)" id="filter-all" class="px-3 py-1.5 rounded-md bg-slate-700 text-white font-medium">Todos</button>
+          <button onclick="setFilter('up')" id="filter-up" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700">UP</button>
+          <button onclick="setFilter('down')" id="filter-down" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700">DOWN</button>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-800 text-xs uppercase text-slate-400 bg-slate-950/50">
+              <th class="py-3 px-6">Status</th>
+              <th class="py-3 px-6">Serviço</th>
+              <th class="py-3 px-6">HTTP</th>
+              <th class="py-3 px-6">Latência</th>
+              <th class="py-3 px-6">Horário (UTC)</th>
+            </tr>
+          </thead>
+          <tbody id="checks-tbody" class="divide-y divide-slate-800 text-sm">
+            <tr>
+              <td colspan="5" class="py-8 px-6 text-center text-slate-500">Nenhuma verificação executada ainda. Teste uma URL acima.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    let currentFilter = null;
+
+    function setFilter(status) {
+      currentFilter = status;
+      ['all', 'up', 'down'].forEach(key => {
+        const btn = document.getElementById(`filter-${key}`);
+        const active = (status === null && key === 'all') || status === key;
+        btn.className = active
+          ? 'px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 font-semibold'
+          : 'px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700';
+      });
+      loadChecks();
+    }
+
+    async function loadChecks() {
+      const allRes = await fetch('/checks');
+      const allData = await allRes.json();
+
+      document.getElementById('stat-total').textContent = allData.length;
+      document.getElementById('stat-up').textContent = allData.filter(i => i.status === 'up').length;
+      document.getElementById('stat-down').textContent = allData.filter(i => i.status === 'down').length;
+
+      const items = currentFilter ? allData.filter(i => i.status === currentFilter) : allData;
+      const tbody = document.getElementById('checks-tbody');
+
+      if (items.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="py-8 px-6 text-center text-slate-500">Nenhum registro encontrado para este filtro.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = [...items].reverse().map(item => {
+        const isUp = item.status === 'up';
+        const badge = isUp
+          ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"><span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>UP</span>`
+          : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20"><span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>DOWN</span>`;
+        const dateStr = new Date(item.checked_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const errorNote = item.error ? `<p class="text-xs text-rose-400 mt-0.5 truncate max-w-xs" title="${item.error}">${item.error}</p>` : '';
+
+        return `
+          <tr class="hover:bg-slate-800/40 transition">
+            <td class="py-3.5 px-6">${badge}</td>
+            <td class="py-3.5 px-6">
+              <div class="font-medium text-white">${item.name}</div>
+              <div class="text-xs text-slate-400 truncate max-w-xs">${item.url}</div>
+              ${errorNote}
+            </td>
+            <td class="py-3.5 px-6 font-mono text-xs text-slate-300">${item.status_code ?? '—'}</td>
+            <td class="py-3.5 px-6 font-mono text-xs text-slate-300">${item.response_time_ms ? item.response_time_ms + ' ms' : '—'}</td>
+            <td class="py-3.5 px-6 text-xs text-slate-400">${dateStr}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('check-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('submit-btn');
+      const feedback = document.getElementById('form-feedback');
+      feedback.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Testando...';
+
+      try {
+        const res = await fetch('/checks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: document.getElementById('service-name').value.trim(),
+            url: document.getElementById('service-url').value.trim(),
+            timeout_seconds: 5.0
+          })
+        });
+
+        if (!res.ok) {
+          throw new Error('Verifique se a URL começa com http:// ou https://');
+        }
+
+        document.getElementById('service-name').value = '';
+        document.getElementById('service-url').value = '';
+        await loadChecks();
+      } catch (err) {
+        feedback.textContent = err.message;
+        feedback.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Verificar';
+      }
+    });
+
+    loadChecks();
+  </script>
+</body>
+</html>
