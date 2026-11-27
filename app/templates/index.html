@@ -7,35 +7,50 @@
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-950 text-slate-100 min-h-screen font-sans antialiased">
-  <div class="max-w-5xl mx-auto px-4 py-10">
+  <div class="max-w-6xl mx-auto px-4 py-10">
     <!-- Header -->
-    <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-800 pb-6 mb-8">
       <div>
         <div class="flex items-center gap-3">
           <span class="h-3 w-3 rounded-full bg-emerald-400 animate-pulse"></span>
           <h1 class="text-2xl font-bold tracking-tight text-white">ServicePulse</h1>
-          <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">v0.3.0</span>
+          <span class="text-xs font-medium px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">v0.4.0</span>
         </div>
-        <p class="text-slate-400 text-sm mt-1">Monitoramento assíncrono de disponibilidade e latência de APIs e serviços HTTP.</p>
+        <p class="text-slate-400 text-sm mt-1">Monitoramento assíncrono de disponibilidade, uptime e latência de serviços HTTP.</p>
       </div>
-      <a href="/docs" target="_blank" class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
-        Documentação API (/docs) ↗
-      </a>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <button id="preset-btn" onclick="runPresetChecks()" type="button"
+          class="inline-flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition cursor-pointer">
+          ⚡ Testar Serviços Populares
+        </button>
+        <a href="/docs" target="_blank"
+          class="inline-flex items-center justify-center px-4 py-2 text-sm font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition">
+          API Swagger (/docs) ↗
+        </a>
+      </div>
     </header>
 
     <!-- Summary Cards -->
-    <section class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
-        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Total de Verificações</p>
-        <p id="stat-total" class="text-3xl font-bold text-white mt-2">0</p>
+        <p class="text-xs uppercase tracking-wider text-slate-400 font-semibold">Uptime Geral</p>
+        <p id="stat-uptime" class="text-3xl font-bold text-white mt-2">—</p>
+        <p id="stat-sub-counts" class="text-xs text-slate-400 mt-1">0 UP · 0 DOWN</p>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <p class="text-xs uppercase tracking-wider text-emerald-400 font-semibold">Serviços Online (UP)</p>
         <p id="stat-up" class="text-3xl font-bold text-emerald-400 mt-2">0</p>
+        <p class="text-xs text-slate-400 mt-1">Respostas 2xx–4xx</p>
       </div>
       <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
         <p class="text-xs uppercase tracking-wider text-rose-400 font-semibold">Indisponíveis (DOWN)</p>
         <p id="stat-down" class="text-3xl font-bold text-rose-400 mt-2">0</p>
+        <p class="text-xs text-slate-400 mt-1">Falhas ou 5xx</p>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-xl p-5">
+        <p class="text-xs uppercase tracking-wider text-sky-400 font-semibold">Latência Média</p>
+        <p id="stat-avg-latency" class="text-3xl font-bold text-sky-400 mt-2">—</p>
+        <p id="stat-total" class="text-xs text-slate-400 mt-1">0 verificações no total</p>
       </div>
     </section>
 
@@ -68,9 +83,9 @@
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-6 py-4 border-b border-slate-800">
         <h2 class="text-base font-semibold text-white">Histórico de Monitoramento</h2>
         <div class="flex items-center gap-2 text-xs">
-          <button onclick="setFilter(null)" id="filter-all" class="px-3 py-1.5 rounded-md bg-slate-700 text-white font-medium">Todos</button>
-          <button onclick="setFilter('up')" id="filter-up" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700">UP</button>
-          <button onclick="setFilter('down')" id="filter-down" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700">DOWN</button>
+          <button onclick="setFilter(null)" id="filter-all" class="px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 font-semibold cursor-pointer">Todos</button>
+          <button onclick="setFilter('up')" id="filter-up" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">UP</button>
+          <button onclick="setFilter('down')" id="filter-down" class="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer">DOWN</button>
         </div>
       </div>
 
@@ -82,12 +97,15 @@
               <th class="py-3 px-6">Serviço</th>
               <th class="py-3 px-6">HTTP</th>
               <th class="py-3 px-6">Latência</th>
-              <th class="py-3 px-6">Horário (UTC)</th>
+              <th class="py-3 px-6">Horário</th>
+              <th class="py-3 px-6 text-right">Ação</th>
             </tr>
           </thead>
           <tbody id="checks-tbody" class="divide-y divide-slate-800 text-sm">
             <tr>
-              <td colspan="5" class="py-8 px-6 text-center text-slate-500">Nenhuma verificação executada ainda. Teste uma URL acima.</td>
+              <td colspan="6" class="py-8 px-6 text-center text-slate-500">
+                Nenhuma verificação ainda. Clique em <span class="text-emerald-400 font-medium">Testar Serviços Populares</span> ou adicione uma URL acima.
+              </td>
             </tr>
           </tbody>
         </table>
@@ -98,31 +116,104 @@
   <script>
     let currentFilter = null;
 
+    const POPULAR_SERVICES = [
+      { name: "GitHub API", url: "https://api.github.com", timeout_seconds: 5.0 },
+      { name: "ViaCEP API", url: "https://viacep.com.br/ws/01001000/json/", timeout_seconds: 5.0 },
+      { name: "HTTPBin Get", url: "https://httpbin.org/get", timeout_seconds: 5.0 }
+    ];
+
     function setFilter(status) {
       currentFilter = status;
       ['all', 'up', 'down'].forEach(key => {
         const btn = document.getElementById(`filter-${key}`);
         const active = (status === null && key === 'all') || status === key;
         btn.className = active
-          ? 'px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 font-semibold'
-          : 'px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700';
+          ? 'px-3 py-1.5 rounded-md bg-emerald-500 text-slate-950 font-semibold cursor-pointer'
+          : 'px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 cursor-pointer';
       });
       loadChecks();
+    }
+
+    async function runSingleCheck(name, url) {
+      const res = await fetch('/checks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, url, timeout_seconds: 5.0 })
+      });
+      if (!res.ok) {
+        throw new Error('Verifique se o nome foi preenchido e a URL começa com http:// ou https://');
+      }
+      return res.json();
+    }
+
+    async function runPresetChecks() {
+      const btn = document.getElementById('preset-btn');
+      const feedback = document.getElementById('form-feedback');
+      feedback.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Testando serviços...';
+
+      try {
+        for (const svc of POPULAR_SERVICES) {
+          await runSingleCheck(svc.name, svc.url);
+        }
+        await loadChecks();
+      } catch (err) {
+        feedback.textContent = err.message;
+        feedback.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Testar Serviços Populares';
+      }
+    }
+
+    async function recheckService(encodedName, encodedUrl, btnEl) {
+      const name = decodeURIComponent(encodedName);
+      const url = decodeURIComponent(encodedUrl);
+      const originalText = btnEl.textContent;
+      btnEl.disabled = true;
+      btnEl.textContent = '...';
+
+      try {
+        await runSingleCheck(name, url);
+        await loadChecks();
+      } catch (_) {
+        btnEl.disabled = false;
+        btnEl.textContent = originalText;
+      }
+    }
+
+    function updateMetrics(allData) {
+      const total = allData.length;
+      const upCount = allData.filter(i => i.status === 'up').length;
+      const downCount = allData.filter(i => i.status === 'down').length;
+      const uptimePct = total > 0 ? ((upCount / total) * 100).toFixed(1) + '%' : '—';
+
+      const latencies = allData
+        .map(i => i.response_time_ms)
+        .filter(v => typeof v === 'number' && !Number.isNaN(v));
+      const avgLatency = latencies.length > 0
+        ? (latencies.reduce((acc, v) => acc + v, 0) / latencies.length).toFixed(1) + ' ms'
+        : '—';
+
+      document.getElementById('stat-uptime').textContent = uptimePct;
+      document.getElementById('stat-sub-counts').textContent = `${upCount} UP · ${downCount} DOWN`;
+      document.getElementById('stat-up').textContent = upCount;
+      document.getElementById('stat-down').textContent = downCount;
+      document.getElementById('stat-avg-latency').textContent = avgLatency;
+      document.getElementById('stat-total').textContent = `${total} ${total === 1 ? 'verificação' : 'verificações'} no total`;
     }
 
     async function loadChecks() {
       const allRes = await fetch('/checks');
       const allData = await allRes.json();
-
-      document.getElementById('stat-total').textContent = allData.length;
-      document.getElementById('stat-up').textContent = allData.filter(i => i.status === 'up').length;
-      document.getElementById('stat-down').textContent = allData.filter(i => i.status === 'down').length;
+      updateMetrics(allData);
 
       const items = currentFilter ? allData.filter(i => i.status === currentFilter) : allData;
       const tbody = document.getElementById('checks-tbody');
 
       if (items.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="py-8 px-6 text-center text-slate-500">Nenhum registro encontrado para este filtro.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="py-8 px-6 text-center text-slate-500">Nenhum registro encontrado para este filtro.</td></tr>`;
         return;
       }
 
@@ -133,6 +224,8 @@
           : `<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20"><span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>DOWN</span>`;
         const dateStr = new Date(item.checked_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         const errorNote = item.error ? `<p class="text-xs text-rose-400 mt-0.5 truncate max-w-xs" title="${item.error}">${item.error}</p>` : '';
+        const safeName = encodeURIComponent(item.name);
+        const safeUrl = encodeURIComponent(item.url);
 
         return `
           <tr class="hover:bg-slate-800/40 transition">
@@ -143,8 +236,14 @@
               ${errorNote}
             </td>
             <td class="py-3.5 px-6 font-mono text-xs text-slate-300">${item.status_code ?? '—'}</td>
-            <td class="py-3.5 px-6 font-mono text-xs text-slate-300">${item.response_time_ms ? item.response_time_ms + ' ms' : '—'}</td>
+            <td class="py-3.5 px-6 font-mono text-xs text-slate-300">${item.response_time_ms !== null && item.response_time_ms !== undefined ? item.response_time_ms + ' ms' : '—'}</td>
             <td class="py-3.5 px-6 text-xs text-slate-400">${dateStr}</td>
+            <td class="py-3.5 px-6 text-right">
+              <button onclick="recheckService('${safeName}', '${safeUrl}', this)" type="button"
+                class="px-2.5 py-1 rounded-md text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition cursor-pointer">
+                Re-testar
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
@@ -159,20 +258,10 @@
       btn.textContent = 'Testando...';
 
       try {
-        const res = await fetch('/checks', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: document.getElementById('service-name').value.trim(),
-            url: document.getElementById('service-url').value.trim(),
-            timeout_seconds: 5.0
-          })
-        });
-
-        if (!res.ok) {
-          throw new Error('Verifique se a URL começa com http:// ou https://');
-        }
-
+        await runSingleCheck(
+          document.getElementById('service-name').value.trim(),
+          document.getElementById('service-url').value.trim()
+        );
         document.getElementById('service-name').value = '';
         document.getElementById('service-url').value = '';
         await loadChecks();
